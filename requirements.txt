@@ -2,3 +2,5 @@ langchain
 langchain-community
 gradio
 python-dotenv
+openai
+langchain-openai
