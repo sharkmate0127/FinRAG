@@ -11,6 +11,6 @@ Python / LangChain / ChromaDB / FastAPI / Gradio / Qwen2.5-7B / Ollama / AKShare
 开发中 · 第一周：环境搭建
 ## 项目状态✅ 第一周 Day 3-4：环境搭建完成
 
-![界面截图](docs/screenshot-day3-4.png)
+![界面截图](docsscreenshot-day3-4.png)
 
 
