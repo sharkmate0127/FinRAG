@@ -29,6 +29,8 @@
 | 部署 | Docker（开发中） |
 
 ## 当前进展
+![第一周界面](docs/week1-screenshot.png)
+
 
 ### ✅ 已完成（第1 周）
 
