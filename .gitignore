@@ -219,3 +219,4 @@ __marimo__/
 .venv/
 *.pyc
 data/raw/
+data/vector_db/
