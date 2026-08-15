@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""FinRAG v0.1：完整 RAG 问答管线
-流程：问题 → ChromaDB 检索 Top5 → 拼接上下文 → DeepSeek 生成 → 带引用回答
-"""
+"""FinRAG v0.2：P3 最优 Prompt + Top10 检索"""
 from sentence_transformers import SentenceTransformer
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
@@ -10,17 +8,13 @@ import chromadb
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # 读取 .env 里的 DEEPSEEK_API_KEY
+load_dotenv()
 
-# ===== 1. 加载 embedding 模型（用于把问题变成向量）=====
 print("加载模型...")
 model = SentenceTransformer("BAAI/bge-large-zh-v1.5")
-
-# ===== 2. 连接向量库 =====
 client = chromadb.PersistentClient(path="data/vector_db")
 collection = client.get_collection("finrag_reports")
 
-# ===== 3. 配置 DeepSeek 大模型 =====
 llm = ChatOpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY"),
     model="deepseek-chat",
@@ -28,16 +22,15 @@ llm = ChatOpenAI(
     temperature=0.3,
 )
 
-# ===== 4. Prompt 模板（RAG 的灵魂：约束模型只用研报内容回答）=====
-template = """你是一名金融研究助手。请基于以下【研报内容】回答用户的【问题】。
-
+# P3 最优模板（A/B 测试胜出：2.6分）
+template = """你是一名资深金融研究助手。请基于【研报内容】回答【问题】。
 要求：
-1. 只用【研报内容】里的信息回答，不要编造任何数据
-2. 如果多份研报涉及不同公司/不同年份，**主动做对比和综合**，不要说"未找到"
-3. 即使研报没有直接给出结论，也可以从各家数据里提取关键数字/趋势
-4. 数字保留研报原值，单位要标明
-5. 如果【研报内容】真的与问题完全无关，才回答"未在研报中找到相关信息"
-6. 回答末尾标注引用来源（格式：来源：XX研报）
+1. 只用【研报内容】回答，不要编造
+2. 如果内容涉及多家公司/多个年份，主动做对比和综合分析
+3. 涉及数字时保留原值并标注单位；涉及预测时说明"XX年预测值"
+4. 推理类问题：从研报中提取"驱动因素、竞争优势、趋势"等信息组织回答
+5. 只有当【研报内容】与问题完全无关时，才回答"未找到相关信息"
+6. 回答末尾标注引用来源（来源：XX研报）
 
 【研报内容】
 {context}
@@ -48,34 +41,24 @@ template = """你是一名金融研究助手。请基于以下【研报内容】
 【回答】"""
 
 prompt = PromptTemplate.from_template(template)
-chain = prompt | llm | StrOutputParser()  # LCEL 管道
+chain = prompt | llm | StrOutputParser()
 
-# ===== 5. 核心问答函数 =====
 def ask(question: str) -> str:
-    # 5.1 把问题编码成向量
     q_emb = model.encode([question], normalize_embeddings=True).tolist()
-
-    # 5.2 检索最相关的 5 个段落
-    results = collection.query(query_embeddings=q_emb, n_results=10)
-
-    # 5.3 拼上下文（每段标注来源，供 LLM 引用）
+    results = collection.query(query_embeddings=q_emb, n_results=10)  # Top10
     parts = []
     for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
         parts.append(f"[{meta['source_file']}]\n{doc}\n")
     context = "\n".join(parts)
-
-    # 5.4 送 LLM 生成
     return chain.invoke({"context": context, "question": question})
 
-# ===== 6. 主程序：交互式问答 =====
 if __name__ == "__main__":
-    print("FinRAG v0.1 已就绪！输入问题开始对话（输入 q 退出）\n")
+    print("FinRAG v0.2 已就绪（P3 最优Prompt）！输入 q 退出\n")
     while True:
         q = input("你的问题: ").strip()
         if q.lower() == "q":
             break
         if not q:
             continue
-        print("\n思考中，请稍等...\n")
-        answer = ask(q)
-        print(f"【回答】\n{answer}\n")
+        print("\n思考中...\n")
+        print(f"【回答】\n{ask(q)}\n")
