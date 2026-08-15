@@ -38,79 +38,145 @@
 
 ![界面截图](docsscreenshot-day3-4.png)
 - **Day 5**：模型接入（DeepSeek API +第一个 LangChain Chain 跑通）
-### 🚧 开发中
 
-- **第 2 周 Day 6-7**：数据工程与知识库（PDF 解析 + 向量化 + 评测集）
+
+## 知识库
+
+- **21 份券商深度研报**，覆盖 11 家上市公司、4 大赛道：
+  - 新能源车链：宁德时代、比亚迪、拓普集团、亿纬锂能
+  - 光伏储能：阳光电源、隆基绿能
+  - AI 算力：浪潮信息、中科曙光、工业富联
+  - AI 应用：科大讯飞、金山办公
+- **1323 个知识块**（500-1000 字符/块，带来源元数据）
+
+## 当前进展
+
+### ✅ 已完成（第 1-3 周）
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| Day 1-5 | 项目规划 / 环境搭建 / DeepSeek 模型接入 | ✅ |
+| Day 6-10 | 数据采集（21 份研报）/ 分块（1323块）/ 向量化入库 | ✅ |
+| Day 11-12 | RAG 核心管线 v0.1（检索+上下文+生成） | ✅ |
+| Day 13-14 | Prompt 工程 A/B 测试，ask.py v0.2 | ✅ |
+| Day 15 | 引用溯源增强 v0.3（编号引用+验证脚本） | ✅ |
+
+### 🚧 开发中
+- Day 16-17：数值推理增强（表格数据处理）
 
 ### 📅 待办
-
-- W3：RAG 核心管线（基础 RAG / Prompt / 引用溯源 / 数值推理）
-- W4：Agent + 检索优化
-- W5：评估 + 部署
+- W4：Agent 工具调用 + 混合检索优化
+- W5：RAGAS 评估 + 双模式对比 + 部署
 - W6：论文 + 面试准备
+
+## 评估结果（A/B 测试，2026-08-15）
+
+4 版 Prompt × 12 题（0-3 分人工评分）：
+
+| 版本 | 设计 | 平均分 |
+|---|---|---|
+| P0 | 极简 baseline | 1.75 |
+| P1 | 角色 + 防幻觉约束 | 2.30 |
+| P2 | P1 + 数值标注 | 2.40 |
+| **P3** | P2 + 综合分析引导 | **2.60** ✅ |
+
+> 结论：Prompt 结构化设计将回答质量提升 **48.6%**（P3 vs P0）。
 
 ## 快速开始
 
 ### 环境要求
-
 - Python 3.10+（推荐 3.11）
 - Windows / macOS / Linux
 
 ### 安装
 
 ```bash
-git clone https://gitee.com/sharkmate0127/FinRAG.git
+git clone https://github.com/sharkmate0127/FinRAG.git
 cd FinRAG
 python -m venv .venv
 
-# 激活虚拟环境
 # Windows PowerShell:
 .\.venv\Scripts\activate
-# Windows CMD / macOS / Linux:
+# macOS / Linux:
 # source .venv/bin/activate
 
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
-### 配置 API Key
+### 配置
 
-在百炼/DeepSeek 平台申请 API Key，创建 `.env` 文件：
+创建 `.env` 文件（DeepSeek 平台申请 Key）：
 
 ```
-# DeepSeek（推荐，免费额度大）
 DEEPSEEK_API_KEY=sk-你的Key
+```
 
-# 或 Qwen 百炼
-# DASHSCOPE_API_KEY=sk-你的Key
+国内访问 HuggingFace 需设置镜像（每个新终端执行）：
+
+```bash
+# PowerShell:
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+```
+
+### 数据准备（一次性的）
+
+```bash
+# 1. 解析 PDF（需先放入 data/raw/）
+python parse_pdfs.py
+
+# 2. 分块
+python chunk_texts.py
+
+# 3. 向量化入库（首次下载 bge 模型约 1.3GB）
+python build_vector_db.py
 ```
 
 ### 运行
 
 ```bash
-# Gradio 界面
+# RAG 问答（交互式，带引用溯源）
+python ask.py
+
+# 检索质量测试
+python query_test.py
+
+# Prompt A/B 测试
+python ab_test.py
+
+# 引用准确率验证
+python check_citations.py
+
+# Gradio 界面（Hello World）
 python app_gradio.py
-# 浏览器访问 http://127.0.0.1:7860
-
-# 测试 LLM 调用
-python call_qwen.py
-
-# 测试 LangChain Chain
-python chain_demo.py
 ```
 
-## 目录结构
+## 项目结构
 
 ```
 FinRAG/
-├── README.md           # 本文件
-├── requirements.txt    # Python 依赖
-├── .env # 环境变量（不入 git）
-├── .gitignore          # Git 忽略规则
-├── app_gradio.py       # Gradio Hello World
-├── test_langchain.py   # LangChain 安装验证
-├── call_qwen.py        # LLM 调用测试
-└── chain_demo.py       # 第一个 LangChain Chain
+├── ask.py                 # RAG 问答主程序（v0.3 编号引用版）
+├── ab_test.py             # Prompt A/B 测试脚本
+├── check_citations.py     # 引用准确率验证脚本
+├── build_vector_db.py     # 向量化入库脚本
+├── query_test.py          # 检索质量测试
+├── chunk_texts.py         # 文本分块脚本
+├── parse_pdfs.py          # PDF 批量解析
+├── check_pdf.py           # PDF 质量检查
+├── call_qwen.py           # LLM 调用测试
+├── chain_demo.py          # LangChain Chain 示例
+├── test_langchain.py      # LangChain 环境验证
+├── app_gradio.py          # Gradio 界面
+├── requirements.txt       # 依赖清单
+├── .env                   # API Key（不入库）
+├── data/
+│   ├── raw/               # 原始 PDF（不入库）
+│   ├── parsed/            # 解析文本
+│   ├── chunks/            # 知识块（jsonl）
+│   ├── vector_db/         # 向量库（不入库）
+│   └── abtest/            # 实验数据
+└── README.md
 ```
+
 
 ## 6 周里程碑
 
