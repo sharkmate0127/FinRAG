@@ -64,8 +64,12 @@ def hybrid_retrieve(question: str, top: int = 5):
     return ranked
 
 # ===== 路由函数：让 LLM 判断问题类型 =====
-def route_question(question: str) -> dict:
-    """让 LLM 输出 JSON: {"route": "rag|agent|hybrid", "stock_code": "300750", "metric": "营收"}"""
+def route_question(question: str, history=None) -> dict:
+    """让 LLM 输出 JSON: {"route": "rag|agent|hybrid", "stock_code": "300750", "metric": "营收"}
+    增加 history 参数：让路由能结合上文判断（如追问"那股价呢"）
+    """
+    history = history or []
+    hist_text = format_history(history)
     prompt = f"""判断下面这个金融问题的类型，只输出 JSON（不要其他文字）：
 
 规则：
@@ -76,6 +80,9 @@ def route_question(question: str) -> dict:
 同时提取：
 - stock_code: 如果问题涉及某家公司，给出它的股票代码（300750宁德时代/002594比亚迪/601012隆基绿能）；不确定就填 null
 - metric: 如果涉及财务指标，给出指标名（营收/净利润/营收同比/净利润同比）；没有就填 null
+
+【对话历史】（若问题是追问，可结合上文确定公司）
+{hist_text}
 
 问题：{question}
 
@@ -91,6 +98,7 @@ def route_question(question: str) -> dict:
     except Exception as e:
         print(f"[warn] 路由解析失败，默认走 RAG: {e}")
     return {"route": "rag", "stock_code": None, "metric": None}
+
 
 # ===== 路线 1：RAG（研报问答）=====
 RAG_TEMPLATE = """你是一名资深金融研究助手。请根据【研报内容】回答用户问题。
@@ -262,33 +270,68 @@ def ask_hybrid(question: str, stock_code=None, metric="营收") -> str:
         "tool_result": tool_result,
         "question": question,
     })
+# ===== 对话历史管理（滑动窗口：最多保留 5 轮）=====
+history = []  # [(user, assistant), ...]
+
+def format_history(history):
+    if not history:
+        return "（无历史对话）"
+    lines = []
+    for u, a in history[-5:]:
+        lines.append(f"用户：{u}")
+        lines.append(f"助手：{a[:150]}")
+    return "\n".join(lines)
+
+def build_search_query(question, history):
+    """追问增强：当前问题 + 上一轮用户问题（解决"那毛利率呢"类追问）"""
+    if history:
+        return f"{question} {history[-1][0]}"
+    return question
 
 # ===== 统一入口 =====
-def smart_answer(question: str) -> str:
-    """总调度：先路由，再分流"""
-    route_info = route_question(question)
-    route = route_info.get("route", "rag")
-    stock_code = route_info.get("stock_code")
-    metric = route_info.get("metric") or "营收"
-
-    print(f"[路由] 类型={route}, 股票={stock_code}, 指标={metric}")
-
-    if route == "agent":
-        return ask_agent(question, stock_code)
-    elif route == "hybrid":
-        return ask_hybrid(question, stock_code, metric)
-    else:
-        return ask_rag(question)
+def smart_answer(question: str) -> str:  
+    """总调度：先路由，再分流（支持多轮对话 + 异常处理）"""  
+    try:  
+        # 追问增强：结合上一轮问题检索  
+        search_q = build_search_query(question, history)  
+        route_info = route_question(question, history)  
+        route = route_info.get("route", "rag")  
+        stock_code = route_info.get("stock_code")  
+        metric = route_info.get("metric") or "营收"  
+  
+        print(f"[路由] 类型={route}, 股票={stock_code}, 指标={metric}")  
+  
+        # 分流（带异常兜底）  
+        if route == "agent":  
+            answer = ask_agent(question, stock_code)  
+        elif route == "hybrid":  
+            answer = ask_hybrid(search_q, stock_code, metric)  
+        else:  
+            answer = ask_rag(search_q)  
+    except Exception as e:  
+        answer = f"抱歉，处理您的问题时出错：{type(e).__name__}: {e}。请稍后重试或换个问法。"  
+  
+    # 记录历史（滑动窗口，最多 10 轮原始）  
+    history.append((question, answer))  
+    if len(history) > 10:  
+        history.pop(0)  
+    return answer
 
 # ===== 主程序 =====
 if __name__ == "__main__":
-    print("FinRAG v0.3 协同系统已就绪！输入 q 退出\n")
+    print("FinRAG v0.4.1 协同系统（多轮对话版）已就绪！")
+    print("输入 q 退出，输入 cls 清空历史\n")
     while True:
         q = input("你的问题: ").strip()
         if q.lower() == "q":
             break
+        if q.lower() == "cls":
+            history.clear()
+            print("[已清空对话历史]\n")
+            continue
         if not q:
             continue
         print("\n思考中...\n")
         ans = smart_answer(q)
         print(f"\n【回答】\n{ans}\n")
+
