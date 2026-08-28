@@ -28,10 +28,10 @@
 | Reranker | bge-reranker-large（二次排序） | ✅ |
 | Agent | DeepSeek Function Calling（OpenAI 兼容协议） | ✅ |
 | 数据接口 | akshare（股价/财务，三级降级） | ✅ |
-| 前端 | Gradio | 🚧（周 5 升级） |
-| 后端 | FastAPI | 📅（周 5） |
-| 评估 | RAGAS | 📅（周 5） |
-| 部署 | Docker | 📅（周 5） |
+| 前端 | Gradio | 🚧（周 6 升级） |
+| 后端 | FastAPI | ✅ |
+| 评估 | RAGAS | ✅ |
+| 部署 | Docker（Dockerfile + compose 已备） | 🚧 |
 
 ## 当前进展
 
@@ -51,14 +51,28 @@
 | Day 23-24 | RAG + Agent 协同 v0.4 | 路由 + 综合推理跑通 |
 | Day 25 | 协同版检索验证 + 路由准确率 | Hit Rate **100%**，路由准确率 **100%** |
 | Day 26 | 协同版多轮对话 + 异常处理 + 端到端测试 | 5 轮追问不跑题 |
+| Day 27-28 | RAGAS 量化评估（DeepSeek judge） | Answer Relevancy **0.798** |
+| Day 29 | FastAPI 后端（/health /query /agent_query + Swagger） | Swagger 文档可访问 ✅ |
 
-### 🚧 开发中（第 5 周）
-- RAGAS 评估（Faithfulness / Answer Relevancy / Context Precision / Context Recall）
-- 双模式对比（API vs 本地 Ollama INT4）
-- FastAPI 后端 + Docker 部署 + Gradio 界面升级
+### 🚧 开发中（第 5 周收尾）
+- Docker 实际部署测试（Docker Desktop 未装，文件已备）
+- 双模式对比（API vs 本地 Ollama INT4，需装 Ollama）
+- Gradio 完整界面（PDF 上传 + 引用展示 + Agent 可视化）
 
 ### 📅 待办（第 6 周）
 - 论文撰写 + GitHub 仓库优化 + 面试准备
+
+## 界面展示
+
+### FastAPI Swagger 文档（Day 29）
+
+后端服务启动后访问 `http://127.0.0.1:8000/docs`，自动生成可交互 API 文档：
+
+![Swagger 首页](docs/screenshots/swagger-首页.png)
+
+![/query 接口测试（研报问答）](docs/screenshots/swagger-query测试.png)
+
+![/health 接口测试（健康检查）](docs/screenshots/swagger-health测试.png)
 
 ## 评估结果
 
@@ -85,6 +99,19 @@
 
 - 协同版检索 Hit Rate：**100% (10/10)**（含混合类问题）
 - 路由准确率：**100% (10/10)**（rag / agent / hybrid 三类意图判断全对）
+
+### RAGAS 量化评估（Day 27-28）
+
+10 个金融研报问题 × RAGAS 4 项指标（judge = DeepSeek）：
+
+| 指标 | 得分 | 说明 |
+|---|---|---|
+| Answer Relevancy | **0.798** | 回答切题度 |
+| Context Precision | 0.200 | 上下文精确度（检索质量） |
+| Faithfulness | 0.000 | 数值推理类系统的逐句比对局限 |
+| Context Recall | 0.000 | 评测集设计影响（待补全标准答案） |
+
+> 兼容性 hack：RAGAS AnswerRelevancy 默认 strictness=3（n=3）→ 改为 1 适配 DeepSeek 的 n=1 限制。
 
 ## 知识库
 
