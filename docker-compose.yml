@@ -1,0 +1,27 @@
+# FinRAG 一键启动
+version: "3.8"
+
+services:
+  backend:
+    build: .
+    container_name: finrag-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - HF_ENDPOINT=https://hf-mirror.com
+    volumes:
+      - ./data:/app/data          # 数据卷（向量库不丢）
+    restart: unless-stopped
+
+  # 说明：本地 Ollama（INT4）服务占位。
+  # 安装 Docker 且网络允许后可启用：
+  # ollama:
+  #   image: ollama/ollama
+  #   container_name: finrag-ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  # volumes:
+  #   ollama_data:
