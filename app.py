@@ -97,7 +97,44 @@ async def log_requests(request, call_next):
     response = await call_next(request)
     logger.info(f"{request.method} {request.url.path} -> {response.status_code} ({time.time()-start:.2f}s)")
     return response
+# ===== 接口 4（P1-3）：上传 PDF 增量入库，立即可问 =====
+from fastapi import UploadFile, File
+from fastapi.responses import JSONResponse
+from upload_pdf_tool import add_pdf_to_db
 
+
+@app.post("/upload_pdf")
+def upload_pdf(file: UploadFile = File(...)):
+    """上传 PDF → 解析分块 → 增量入库 → 立即可在 /query 提问"""
+    # 1. 校验文件类型
+    if not file.filename.lower().endswith(".pdf"):
+        return JSONResponse({"status": "error", "msg": "仅支持 .pdf 文件"}, status_code=400)
+
+    # 2. 存临时文件（UploadFile 不能直接喂给 PDF 解析库）
+    import tempfile
+    import shutil
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+
+        # 3. 增量入库（核心逻辑在 upload_pdf_tool.py）
+        result = add_pdf_to_db(tmp_path)
+        return {
+            "status": "ok",
+            "filename": file.filename,
+            "added_chunks": result["added_chunks"],
+            "vector_total": result["vector_total"],
+            "msg": f"已入库 {result['added_chunks']} 块（向量库共 {result['vector_total']} 块），立即可在 /query 提问",
+        }
+    except Exception as e:
+        logger.error(f"/upload_pdf 失败: {e}")
+        return JSONResponse({"status": "error", "msg": f"{type(e).__name__}: {e}"}, status_code=500)
+    finally:
+        if tmp_path and Path(tmp_path).exists():
+            Path(tmp_path).unlink()  # 清理临时文件
+            
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)

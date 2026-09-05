@@ -24,11 +24,19 @@ reranker = CrossEncoder("BAAI/bge-reranker-large", max_length=512, **_emb_kwargs
 client = chromadb.PersistentClient(path="data/vector_db")
 collection = client.get_collection("finrag_reports")
 
-chunks = [json.loads(l) for l in Path("data/chunks/chunks.jsonl").read_text(encoding="utf-8").splitlines()]
-texts = [c["text"] for c in chunks]
-tokens = [list(jieba.cut(t)) for t in texts]
-bm25 = BM25Okapi(tokens)
-id2idx = {c["chunk_id"]: i for i, c in enumerate(chunks)}
+def _reload_index():
+    """重载 chunks/bm25/id2idx 内存索引。
+    顶层加载一次；/upload_pdf 增量入库后再次调用，
+    让新 PDF 的 chunk 进入 BM25 与 id2idx（否则新块永远检索不到）。"""
+    global chunks, tokens, bm25, id2idx
+    chunks = [json.loads(l) for l in Path("data/chunks/chunks.jsonl").read_text(encoding="utf-8").splitlines()]
+    texts = [c["text"] for c in chunks]
+    tokens = [list(jieba.cut(t)) for t in texts]
+    bm25 = BM25Okapi(tokens)
+    id2idx = {c["chunk_id"]: i for i, c in enumerate(chunks)}
+
+
+_reload_index()
 
 from model_config import build_llm, describe_mode
 
