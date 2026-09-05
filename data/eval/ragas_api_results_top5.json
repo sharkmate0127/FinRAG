@@ -1,0 +1,8 @@
+{
+  "faithfulness": 1.0,
+  "answer_relevancy": 0.7516881207887356,
+  "context_precision": 0.99999999998,
+  "context_recall": 0.4444444444444444,
+  "mode": "api",
+  "n_questions": 71
+}

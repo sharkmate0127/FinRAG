@@ -15,9 +15,12 @@ import os
 
 load_dotenv()
 
-print("加载模型...")
-model = SentenceTransformer("BAAI/bge-large-zh-v1.5")
-reranker = CrossEncoder("BAAI/bge-reranker-large", max_length=512)
+# ===== 设备开关：local 通道建议 FINRAG_EMB_DEVICE=cpu（8GB 显存不够 Qwen+embedding+reranker 同挤 GPU）=====
+_emb_device = os.getenv("FINRAG_EMB_DEVICE", "").strip().lower()
+_emb_kwargs = {"device": _emb_device} if _emb_device else {}
+print(f"加载模型...（embedding/reranker 设备：{_emb_device or 'auto(cuda)'}）")
+model = SentenceTransformer("BAAI/bge-large-zh-v1.5", **_emb_kwargs)
+reranker = CrossEncoder("BAAI/bge-reranker-large", max_length=512, **_emb_kwargs)
 client = chromadb.PersistentClient(path="data/vector_db")
 collection = client.get_collection("finrag_reports")
 
@@ -27,12 +30,11 @@ tokens = [list(jieba.cut(t)) for t in texts]
 bm25 = BM25Okapi(tokens)
 id2idx = {c["chunk_id"]: i for i, c in enumerate(chunks)}
 
-llm = ChatOpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    model="deepseek-chat",
-    base_url="https://api.deepseek.com",
-    temperature=0.2,
-)
+from model_config import build_llm, describe_mode
+
+print("当前模型：", describe_mode())
+llm = build_llm()
+
 
 # Few-Shot 数值推理示例（Day 16-17）
 few_shot_examples = """示例1：

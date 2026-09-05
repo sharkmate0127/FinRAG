@@ -38,12 +38,11 @@ tokens = [list(jieba.cut(t)) for t in texts]
 bm25 = BM25Okapi(tokens)
 id2idx = {c["chunk_id"]: i for i, c in enumerate(chunks)}
 
-llm = ChatOpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    model="deepseek-chat",
-    base_url="https://api.deepseek.com",
-    temperature=0.2,
-)
+from model_config import build_llm, describe_mode
+
+print("当前模型：", describe_mode())
+llm = build_llm()
+
 
 # ===== 引入两个工具（复用，不重复造轮子）=====
 from test_tool import get_stock_price
