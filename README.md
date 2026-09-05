@@ -1,5 +1,10 @@
 # FinRAG — 金融研报智能问答系统（v3.1 双通道版）
 
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-v1.1.1-orange.svg)
+![Python](https://img.shields.io/badge/Python-3.11-green.svg)
+![RAG+Agent](https://img.shields.io/badge/RAG%2BAgent-Dual--Engine-purple.svg)
+
 基于 **RAG（检索增强生成）+ Agent（工具调用）** 双能驱动架构的金融研报智能问答系统，
 支持 **DeepSeek API / 本地 Qwen2.5-7B INT4 双通道切换**。系统对券商研报内容进行精准问答，
 支持数值推理与引用溯源，并可调用工具查询实时行情与财务数据，实现"研报预测 vs 实际数据"综合对比。
@@ -18,7 +23,7 @@
 - **数值推理**：Few-Shot 引导，财务表格数据自动提取与计算
 - **Agent 工具调用**：LLM 自主决定调 `get_stock_price` / `get_financial_data`
 - **多轮对话**：滑动窗口记忆 + 追问增强（"那毛利率呢"自动接上文）
-- **三级降级**：真接口 → 本地演示数据 → 明确报错（网络不可用不崩溃）
+- **四级降级**：腾讯直连 → 新浪直连 → akshare → 本地演示数据（多源兜底，网络波动不崩溃）
 
 ## 技术栈
 
